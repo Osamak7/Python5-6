@@ -1,7 +1,7 @@
 ls -l
-mkdir $home/cercaStringa
-cp "./myenv"  "./cerca.py" $home/cercaStringa
-cd $home/cercaStringa
+mkdir $HOME/cercaStringa
+cp "./myenv"  "./cerca.py" "./requirements.txt" "./uninstall.sh" $HOME/cercaStringa
+cd $HOME/cercaStringa
 pip install virtualenv
 virtualenv myenv
 source myenv/bin/activate

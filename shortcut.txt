@@ -1,3 +1,10 @@
 pip install -r <"NOME FILE"> = INSTALLA TUTTI I FILE PRESENTI ALL'INTERNO DEL FILE 
 
+Viene usato per mantenere pulito il sistema e per evitare che profili inutilizzati possano causare problemi o conflitti.
 sudo aa-remove-unknown = SE DA PROBLEMI NELLA CHIUSURA DEI DOKER
+
+$ docker compose stop = mettere in pausa l'ambiente docker 
+
+$ docker compose start = Per riprendere basta dare il comando
+
+$ docker compose down = per pulire oltre a stoppare tutto -

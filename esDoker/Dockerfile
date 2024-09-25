@@ -1,3 +1,3 @@
 FROM python:3.10-alpine
-ADD myapp.py .
-CMD ["python", "./myapp.py"]
+ADD m2.py myapp.py .
+CMD ["python", "./m2.py"]

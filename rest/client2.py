@@ -3,6 +3,7 @@ import json, requests
 base_url = "http://127.0.0.1:8080"
 
 
+
 def RichiediDatiCittadino():
     nome = input("\ninserisci il nome: \n")
     cognome = input("\ninserisci il cognome: \n")
@@ -56,10 +57,11 @@ while (SOper != "5"):
             print("attenzione problemi")
 
     elif SOper == "2":
-        api_url = base_url + "/gestisci_dati"
-        jsonDataRequest = Gestisci_Dati()
+        api_url = base_url + "/read_cittadino"
+        codiceFiscaleCittadino = input("inserisci il tuo codice fiscale")
+        api_url+= "/" +codiceFiscaleCittadino
         try:
-            response = requests.post(api_url,json=jsonDataRequest)
+            response = requests.get(api_url)
             print(response.status_code)
             print(response.headers["Content-Type"])
             data1 = response.json()

@@ -4,6 +4,11 @@ from myJson import JsonDeserialize, JsonSerialize
 sFileAnagrafe = "./anagrafe.json"
 api = Flask(__name__)
 
+@api.route('/pippo', methods=['GET'])
+def GestisciPippo():
+    myresponse = requests.get("https://www.google.it")
+    return myresponse.text
+
 @api.route("/add_cittadino", methods= ["POST"])
 def GestisciAddCittadino():
     #prendi dati della richiesta
@@ -15,12 +20,12 @@ def GestisciAddCittadino():
         print("codice fiscale ricevuto: " + sCodiceFiscale)
 
         #carico l anagrafe
-        dAnagrafe = deserializza_json(sFileAnagrafe)
+        dAnagrafe = JsonDeserialize(sFileAnagrafe)
 
            #controlla se non ce sta
         if sCodiceFiscale not in dAnagrafe:
             dAnagrafe[sCodiceFiscale] = jRequest
-            serializza_json(dAnagrafe,sFileAnagrafe)
+            JsonSerialize(dAnagrafe,sFileAnagrafe)
             jResponse = {"Error" : "000", "Msg" : "ok"}
             return json.dumps(jResponse),200
         
@@ -43,7 +48,7 @@ def GestisciDati():
         sCodiceFiscale = jRequest
         print("codice fiscale ricevuto: " + sCodiceFiscale)
 
-    dAnagrafe = deserializza_json(sFileAnagrafe)
+    dAnagrafe = JsonDeserialize(sFileAnagrafe)
 
            #controlla se non ce sta
     if sCodiceFiscale in dAnagrafe:
@@ -69,7 +74,7 @@ def GestisciModifica():
         print("codice fiscale ricevuto: " + sCodiceFiscale)
 
         #carico l anagrafe
-        dAnagrafe = deserializza_json(sFileAnagrafe)
+        dAnagrafe = JsonDeserialize(sFileAnagrafe)
 
            #controlla se non ce sta
         if sCodiceFiscale in dAnagrafe:
@@ -79,7 +84,7 @@ def GestisciModifica():
 
 
 
-            serializza_json(dAnagrafe,sFileAnagrafe)
+            JsonSerialize(dAnagrafe,sFileAnagrafe)
             jResponse = {"Error" : "000", "Msg" : "ok"}
             return json.dumps(jResponse),200
         

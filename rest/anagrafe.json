@@ -1,0 +1,44 @@
+{
+    "dctnst34b56h501u": {
+        "nome": "mario",
+        "cognome": "rossi",
+        "data nascita": "21/05/1980",
+        "codiceFiscale": "dctnst34b56h501u"
+    },
+    "dctnst34b56h500r": {
+        "nome": "roro",
+        "cognome": "rossi",
+        "data nascita": "21/05/1980",
+        "codiceFiscale": "dctnst34b56h500r"
+    },
+    "dctnst34b56h505u": {
+        "nome": "roberto",
+        "cognome": "rossi",
+        "data nascita": "21/05/1980",
+        "codiceFiscale": "dctnst34b56h505u"
+    },
+    "dctnst34b56h504e": {
+        "nome": "rosa",
+        "cognome": "rossi",
+        "data nascita": "21/05/1980",
+        "codiceFiscale": "dctnst34b56h504e"
+    },
+    "dctnst34b56h503w": {
+        "nome": "sara",
+        "cognome": "rossi",
+        "data nascita": "21/05/1980",
+        "codiceFiscale": "dctnst34b56h503w"
+    },
+    "dctnst34b56h502c": {
+        "nome": "mario",
+        "cognome": "rossi",
+        "data nascita": "21/05/1980",
+        "codiceFiscale": "dctnst34b56h502c"
+    },
+    "oooooooooo": {
+        "nome": "o",
+        "cognome": "ooo",
+        "dataNascita": "19",
+        "codiceFiscale": "oooooooooo"
+    }
+}

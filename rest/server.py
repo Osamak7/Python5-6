@@ -1,125 +1,144 @@
-from flask import Flask,json,request
-from myJson import JsonDeserialize, JsonSerialize
+from flask import Flask, jsonify, request
+from myjson import JsonDeserialize, JsonSerialize
+import sys
+import dbclient as db
 
-sFileAnagrafe = "./anagrafe.json"
 api = Flask(__name__)
 
-@api.route('/pippo', methods=['GET'])
-def GestisciPippo():
-    myresponse = requests.get("https://www.google.it")
-    return myresponse.text
+#Devo connettermi al database
+cur = db.connect()
+if cur is None:
+	print("Errore connessione al DB")
+	sys.exit()
 
-@api.route("/add_cittadino", methods= ["POST"])
+file_path = "anagrafe.json"
+cittadini = JsonDeserialize(file_path)
+
+file_path_users = "utenti.json"
+utenti = JsonDeserialize(file_path_users)
+
+
+def MiaProcedura():
+    print("ciao questa e la mia Procedura")
+
+
+
+
+@api.route('/login', methods=['POST'])
+def GestisciLogin():
+    global cur
+    content_type = request.headers.get('Content-Type')
+    if content_type == 'application/json':
+        jsonReq = request.json
+        sUsernameInseritoDalClient = jsonReq["username"]
+        sPasswordInseritaDalClient = jsonReq["password"]
+        sQuery = "select privilegi from utenti where email='" + sUsernameInseritoDalClient + "' and password='" + sPasswordInseritaDalClient + "';"  
+        print(sQuery)
+        iNumRows = db.read_in_db(cur,sQuery)
+        if iNumRows == 1:
+            lRow = db.read_next_row(cur)
+            sPriv = lRow[1][0]
+            print("privilegio:" + sPriv )
+            return jsonify({"Esito": "000", "Msg": "Utente registrato", "Privilegio":sPriv}), 200
+
+        else:
+            return jsonify({"Esito": "001", "Msg": "Credenziali errate"})
+    else:
+        return jsonify({"Esito": "002", "Msg": "Formato richiesta errato"}) 
+
+
+
+
+
+@api.route('/add_cittadino', methods=['POST'])
 def GestisciAddCittadino():
-    #prendi dati della richiesta
-    content_type = request.headers.get('Content_Type')
-    print("\n Ricevuta chiamata" + content_type)
-    if content_type == "application/json":
-        jRequest = request.json
-        sCodiceFiscale = jRequest["codice fiscale"]
-        print("codice fiscale ricevuto: " + sCodiceFiscale)
-
-        #carico l anagrafe
-        dAnagrafe = JsonDeserialize(sFileAnagrafe)
-
-           #controlla se non ce sta
-        if sCodiceFiscale not in dAnagrafe:
-            dAnagrafe[sCodiceFiscale] = jRequest
-            JsonSerialize(dAnagrafe,sFileAnagrafe)
-            jResponse = {"Error" : "000", "Msg" : "ok"}
-            return json.dumps(jResponse),200
+    content_type = request.headers.get('Content-Type')
+    if content_type == 'application/json':
+        jsonReq = request.json
         
-        else:
+        #prima di tutto verifico utente, password e privilegio 
+        #dove utente e password me l'ha inviato il client
+        #mentre il privilegio lo vado a leggere nel mio file  (utenti.json)
 
-            jResponse = {"Error" : "001", "Msg" : "CODICE FISCALE GIÀ PRESENTE"}
-            return json.dumps(jResponse),200
+        codice_fiscale = jsonReq.get('codFiscale')
+        if codice_fiscale in cittadini:
+            return jsonify({"Esito": "001", "Msg": "Cittadino già esistente"}), 200
+        else:
+            cittadini[codice_fiscale] = jsonReq
+            JsonSerialize(cittadini, file_path) 
+            return jsonify({"Esito": "000", "Msg": "Cittadino aggiunto con successo"}), 200
+    else:
+        return jsonify({"Esito": "002", "Msg": "Formato richiesta non valido"}), 200
+
+
+
+"""
+Questa funzione sta sul SERVER. Riceve il codice fiscale dal client 
+e verifica se il codice e d i dati associati stanno in anagrafe.json
+"""
+
+@api.route('/read_cittadino/<codice_fiscale>', methods=['GET'])
+def read_cittadino(codice_fiscale):
+
+    #prima di tutto verifico utente, password e privilegio 
+    #dove utente e password me l'ha inviato il client
+    #mentre il privilegio lo vado a leggere nel mio file  (utenti.json)
+    sQuery = "select * from cittadini where codice_fiscale='" + codice_fiscale + "';"
     
+
+
+
+
+    cittadino = cittadini.get(codice_fiscale)
+    if cittadino:
+        return jsonify({"Esito": "000", "Msg": "Cittadino trovato", "Dati": cittadino}), 200
     else:
-        return "Errore, Formato non riconosciuto",401
- 
-@api.route("/gestisci_dati", methods= ["POST"])
-def GestisciDati():
+        return jsonify({"Esito": "001", "Msg": "Cittadino non trovato"}), 200
 
-    #prendo dati della richiesta
-    content_type = request.headers.get('Content_Type')
-    print("\n Ricevuta chiamata" + content_type)
-    if content_type == "application/json":
-        jRequest = request.json
-        sCodiceFiscale = jRequest
-        print("codice fiscale ricevuto: " + sCodiceFiscale)
 
-    dAnagrafe = JsonDeserialize(sFileAnagrafe)
 
-           #controlla se non ce sta
-    if sCodiceFiscale in dAnagrafe:
 
-        #risposta
-        jResponse = {"Error" : "000", "Msg" : f"DATI UTENTE RICHIESTI {dAnagrafe[sCodiceFiscale]}"}
 
-        return json.dumps(jResponse),200
+
+@api.route('/update_cittadino', methods=['PUT'])
+def update_cittadino():
+
+    #prima di tutto verifico utente, password e privilegio 
+    #dove utente e password me l'ha inviato il client
+    #mentre il privilegio lo vado a leggere nel mio file  (utenti.json)
+
+    content_type = request.headers.get('Content-Type')
+    if content_type == 'application/json':
+        jsonReq = request.json
+        codice_fiscale = jsonReq.get('codFiscale')
+        if codice_fiscale in cittadini:
+            cittadini[codice_fiscale] = jsonReq
+            JsonSerialize(cittadini, file_path)  
+            return jsonify({"Esito": "000", "Msg": "Cittadino aggiornato con successo"}), 200
+        else:
+            return jsonify({"Esito": "001", "Msg": "Cittadino non trovato"}), 200
     else:
-
-        jResponse = {"Error" : "003", "Msg" : "CODICE FISCALE SBAGLIATO"}
-        return json.dumps(jResponse),200
+        return jsonify({"Esito": "002", "Msg": "Formato richiesta non valido"}), 200
 
 
-@api.route("/modifica_cittadino", methods= ["POST"])
-def GestisciModifica():
-    #prendi dati della richiesta
-    content_type = request.headers.get('Content_Type')
-    print("\n Ricevuta chiamata" + content_type)
-    if content_type == "application/json":
-        jRequest = request.json
-        sCodiceFiscale = jRequest["codice fiscale"]
-        print("codice fiscale ricevuto: " + sCodiceFiscale)
+@api.route('/elimina_cittadino', methods=['DELETE'])
+def elimina_cittadino():
 
-        #carico l anagrafe
-        dAnagrafe = JsonDeserialize(sFileAnagrafe)
-
-           #controlla se non ce sta
-        if sCodiceFiscale in dAnagrafe:
-            for k,v in jRequest.items():
-                if v != "salta":
-                    dAnagrafe[sCodiceFiscale][k] = v
-
-
-
-            JsonSerialize(dAnagrafe,sFileAnagrafe)
-            jResponse = {"Error" : "000", "Msg" : "ok"}
-            return json.dumps(jResponse),200
-        
+    #prima di tutto verifico utente, password e privilegio 
+    #dove utente e password me l'ha inviato il client
+    #mentre il privilegio lo vado a leggere nel mio file  (utenti.json)
+    
+    content_type = request.headers.get('Content-Type')
+    if content_type == 'application/json':
+        cod = request.json.get('codFiscale')
+        if cod in cittadini:
+            del cittadini[cod]
+            JsonSerialize(cittadini, file_path)  
+            return jsonify({"Esito": "000", "Msg": "Cittadino rimosso con successo"}), 200
         else:
-
-            jResponse = {"Error" : "001", "Msg" : "ERRORE DURANTE LA MODIFICA"}
-            return json.dumps(jResponse),200
-        
-
-"/elimina_cittadino"
-@api.route("/elimina_cittadino", methods= ["POST"])
-def GestisciEliminazione():
-    #prendi dati della richiesta
-    content_type = request.headers.get('Content_Type')
-    print("\n Ricevuta chiamata" + content_type)
-    if content_type == "application/json":
-        jRequest = request.json
-        sCodiceFiscale = jRequest
-
-        #carico l anagrafe
-        dAnagrafe = JsonDeserialize(sFileAnagrafe)
-
-           #controlla se non ce sta e esegue l operazione
-        if sCodiceFiscale in dAnagrafe:
-            del dAnagrafe[sCodiceFiscale]
-            JsonSerialize(dAnagrafe,sFileAnagrafe)
-            jResponse = {"Error" : "000", "Msg" : "ok"}
-            return json.dumps(jResponse),200
-        else:
-
-            jResponse = {"Error" : "001", "Msg" : "ERRORE DURANTE LA MODIFICA"}
-            return json.dumps(jResponse),200
-        
-        
+            return jsonify({"Esito": "001", "Msg": "Cittadino non trovato"}), 200
+    else:
+        return jsonify({"Esito": "002", "Msg": "Formato richiesta non valido"}), 200
 
 
-
-api.run(host= "127.0.0.1", port="8080")
+api.run(host="127.0.0.1", port=8080, ssl_context="adhoc")

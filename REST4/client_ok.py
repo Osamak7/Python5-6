@@ -1,15 +1,14 @@
 import requests, json, sys
 
-
-import urllib3
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 base_url = "https://127.0.0.1:8080"
 
+sUsername=""
+sPassword = ""
 
 def GetDatiCittadino():
     nome = input("Inserisci il nome: ")
     cognome = input("Inserisci il cognome: ")
-    dataN = input("Inserisci la data di nascita (aaaa/mm/gg): ")
+    dataN = input("Inserisci la data di nascita (gg/mm/aaaa): ")
     codF = input("Inserisci il codice fiscale: ")
     datiCittadino = {
         "nome": nome, 
@@ -72,8 +71,7 @@ def EffettuaPrimoLogin():
 
 
 print("Benvenuti al Comune - sede locale")
-sUsername=""
-sPassword = ""
+
 sPrivilegio = ""
 iPrimoLoginEffettuato = 0 
 while iPrimoLoginEffettuato == 0:
@@ -100,8 +98,8 @@ while iFlag==0:
         print("Aggiunta cittadino")
         api_url = base_url + "/add_cittadino"
         jsonDataRequest = GetDatiCittadino()
-        jsonDataRequestNew = {"username":sUsername } 
-        EseguiOperazione(1, api_url, jsonDataRequest)
+        jsonDataRequestNew = {"username":sUsername , "password":sPassword, "datiCittadino":jsonDataRequest } 
+        EseguiOperazione(1, api_url, jsonDataRequestNew)
 
     # Richiesta dati cittadino
     elif iOper == 2:
@@ -129,6 +127,7 @@ while iFlag==0:
 
     else:
         print("Operazione non disponibile, riprova.")
+
 
 
 

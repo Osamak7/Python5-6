@@ -1,170 +1,334 @@
-from flask import Flask, jsonify, request
-from myjson import JsonDeserialize, JsonSerialize
-import sys
+from flask import Flask, json, request
+
 import dbclient as db
+
+cur = db.connect()
 
 api = Flask(__name__)
 
-#Devo connettermi al database
-cur = db.connect()
-if cur is None:
-	print("Errore connessione al DB")
-	sys.exit()
+def controllo(operatore, operazione):
+    
+    print(f'operatore: {operatore}')
+    print(f'operazione: {operazione}')
 
-file_path = "anagrafe.json"
-cittadini = JsonDeserialize(file_path)
+    user = operatore['user']
+    password = operatore["password"]
 
-file_path_users = "utenti.json"
-utenti = JsonDeserialize(file_path_users)
-
-
-def MiaProcedura():
-    print("ciao questa e la mia Procedura")
-
-
-
-
-@api.route('/login', methods=['POST'])
-def GestisciLogin():
     global cur
+    #carichiamo gli utenti
+    db.read_in_db(cur, f"select * from utenti where utente = '{user}';")
+
+    row = db.read_next_row(cur)[1]
+
+    print(row)
+
+    #controllo esistenza operatore
+    if user in row:
+
+        if password == row[1]:
+            #carico i permessi
+            permesso = row[2]
+
+            if (operazione == 1)and(permesso == 'w'):   return True
+            
+            elif (operazione == 2)and((permesso == 'w')or(permesso == 'r')):    return True
+
+            elif (operazione == 3)and(permesso == 'w'): return True
+
+            elif (operazione == 4)and(permesso == 'w'): return True
+            
+            else:   return False
+        else:   return False
+    else:   return False
+    
+@api.route('/accedi', methods=['POST'])
+def accedi():
+    global cur
+    
+    #prendi i dati della richiesta
     content_type = request.headers.get('Content-Type')
+    print('Ricevuta chiamata ' + content_type)
+
     if content_type == 'application/json':
-        jsonReq = request.json
-        sUsernameInseritoDalClient = jsonReq["username"]
-        sPasswordInseritaDalClient = jsonReq["password"]
-        sQuery = "select privilegi from utenti where email='" + sUsernameInseritoDalClient + "' and password='" + sPasswordInseritaDalClient + "';"  
-        print(sQuery)
-        iNumRows = db.read_in_db(cur,sQuery)
-        if iNumRows == 1:
-            lRow = db.read_next_row(cur)
-            sPriv = lRow[1][0]
-            print("privilegio:" + sPriv )
-            return jsonify({"Esito": "000", "Msg": "Utente registrato", "Privilegio":sPriv}), 200
+
+        jRequest = request.json
+        user = jRequest["operatore"]['user']
+        password = jRequest["operatore"]['password']
+
+        print(f'Operatore: {jRequest["operatore"]}')
+
+        #Prendiamo l'utente dal db
+        db.read_in_db(cur, f"select * from utenti u where u.utente = '{user}';")
+
+        row = db.read_next_row(cur)[1]
+
+        print(row)
+
+        #controlla che l'operatore esista
+        if user in row:
+            
+            if password == row[1]:
+
+                jResponse = {'Error': '000', 'msg':'ok', 'user': row} 
+                return json.dumps(jResponse), 200
+            
+            else:
+
+                jResponse = {'Error': '001', 'msg':'Password Errata'} 
+                return json.dumps(jResponse), 200
 
         else:
-            return jsonify({"Esito": "001", "Msg": "Credenziali errate"})
+
+            jResponse = {'Error': '001', 'msg':'Utente non esistente'} 
+            return json.dumps(jResponse), 200
+        
     else:
-        return jsonify({"Esito": "002", "Msg": "Formato richiesta errato"}) 
 
+        return 'Errore, formato non riconosciuto', 401
 
-
-
+    
 
 @api.route('/add_cittadino', methods=['POST'])
 def GestisciAddCittadino():
+    global cur
+
+    #prendi i dati della richiesta
     content_type = request.headers.get('Content-Type')
-    if content_type == 'application/json':
-        jsonReq = request.json
-        
-        #prima di tutto verifico utente, password e privilegio 
-        #dove utente e password me l'ha inviato il client
-        #mentre il privilegio lo vado a leggere nel mio file  (utenti.json)
-
-
-        codice_fiscale = jsonReq.get('codFiscale')
-        nome = jsonReq.get('nome')
-        cognome = jsonReq.get('cognome')
-        dataNascita = jsonReq.get('dataNascita')
-        sQuery = "insert into anagrafe values ("
-        sQuery += f"'{codice_fiscale}' , '{nome}' , '{cognome}' , '{dataNascita}')"
-        print(sQuery)
-        iRet = db.write_in_db(cur , sQuery)
-        
-
-        if iRet == -2:
-            return jsonify({"Esito": "001", "Msg": "Cittadino già esistente"}), 200
-        elif iRet == -1:
-            return jsonify({"Esito": "002", "Msg": "Formato richiesta non valido"}), 200
-        else:
-            return jsonify({"Esito": "000", "Msg": "Cittadino aggiunto con successo"}), 200
-        
-    else:
-        return jsonify({"Esito": "002", "Msg": "Formato richiesta non valido"}), 200
-
-
-
-"""
-Questa funzione sta sul SERVER. Riceve il codice fiscale dal client 
-e verifica se il codice e d i dati associati stanno in anagrafe.json
-"""
-
-@api.route('/read_cittadino/<codice_fiscale>', methods=['GET'])
-def read_cittadino(codice_fiscale):
-
-    #prima di tutto verifico utente, password e privilegio 
-    #dove utente e password me l'ha inviato il client
-    #mentre il privilegio lo vado a leggere nel mio file  (utenti.json)
-    sQuery = "select * from cittadini where codice_fiscale='" + codice_fiscale + "';"
-    
-
-
-
-
-    cittadino = cittadini.get(codice_fiscale)
-    if cittadino:
-        return jsonify({"Esito": "000", "Msg": "Cittadino trovato", "Dati": cittadino}), 200
-    else:
-        return jsonify({"Esito": "001", "Msg": "Cittadino non trovato"}), 200
-
-
-
-
-
-
-@api.route('/update_cittadino', methods=['PUT'])
-def update_cittadino():
-
-    #prima di tutto verifico utente, password e privilegio 
-    #dove utente e password me l'ha inviato il client
-    #mentre il privilegio lo vado a leggere nel mio file  (utenti.json)
-
-    content_type = request.headers.get('Content-Type')
+    print('Ricevuta chiamata ' + content_type)
 
     if content_type == 'application/json':
-        jsonReq = request.json
-        codice_fiscale = jsonReq.get('codFiscale')
 
-        sQuery = "update from anagrafe where codice_fiscale = "
-        sQuery += f"'{codice_fiscale}' "
-        print(sQuery)
+        #Dati cittadino e operatore
+        jRequest = request.json
+        sCodiceFiscale = jRequest["cittadino"]['codiceFiscale']
+        sNome = jRequest["cittadino"]['nome']
+        sCognome = jRequest["cittadino"]['cognome']
+        sData = jRequest["cittadino"]['dataNascita']
+        print(jRequest)
 
-        if codice_fiscale in cittadini:
-            cittadini[codice_fiscale] = jsonReq
-            JsonSerialize(cittadini, file_path)  
-            return jsonify({"Esito": "000", "Msg": "Cittadino aggiornato con successo"}), 200
+        operatore = jRequest["operatore"]
+
+        con = controllo(operatore, 1)
+
+        if con:
+
+            #carichiamo l'anagrafe
+            db.read_in_db(cur, f"select * from cittadini where codice_fiscale = '{sCodiceFiscale}';")
+
+            row = db.read_next_row(cur)[1]
+
+            print(row)
+            
+            #controlla che il cittadino non sia già presente
+            if row == None:
+
+                sQuery = f"INSERT INTO cittadini VALUES ('{sCodiceFiscale}', '{sNome}', '{sCognome}', to_date('{sData}', 'YYYY-MM-DD')); "
+                print(sQuery)
+                ris = db.write_in_db(cur, sQuery)
+
+                if ris == 0:
+
+                    jResponse = {'Error': f'{ris}', 'msg':'ok'} 
+                    return json.dumps(jResponse), 200
+                
+                else:
+
+                    jResponse = {'Error': f'{ris}', 'msg':'ko'} 
+                    return json.dumps(jResponse), 200
+            else:
+
+                jResponse = {'Error': '001', 'msg':'Codice Fiscale già presente'} 
+                return json.dumps(jResponse), 200
         else:
-            return jsonify({"Esito": "001", "Msg": "Cittadino non trovato"}), 200
+
+            jResponse = {'Error': '001', 'msg':'Permesso Negato'} 
+            return json.dumps(jResponse), 200
     else:
-        return jsonify({"Esito": "002", "Msg": "Formato richiesta non valido"}), 200
 
-
-@api.route('/elimina_cittadino', methods=['DELETE'])
-def elimina_cittadino():
-
-    #prima di tutto verifico utente, password e privilegio 
-    #dove utente e password me l'ha inviato il client
-    #mentre il privilegio lo vado a leggere nel mio file  (utenti.json)
+        return 'Errore, formato non riconosciuto', 401
     
+
+@api.route('/info_cittadino', methods=['POST'])
+def GestisciInfoCittadino():
+    global cur
+    
+    #prendi i dati della richiesta
     content_type = request.headers.get('Content-Type')
+    print('Ricevuta chiamata ' + content_type)
+
     if content_type == 'application/json':
-        jsonReq = request.json
 
-        codice_fiscale = jsonReq.get('codFiscale')
-        sQuery = f"delete from anagrafe where codice_fiscale = '{codice_fiscale}' "
-        print(sQuery)
-        cod = request.json.get('codFiscale')
-        
-        if cod in cittadini and :
-            iRet = db.write_in_db(cur , sQuery)
-            del cittadini[cod]
-            JsonSerialize(cittadini, file_path)  
-            return jsonify({"Esito": "000", "Msg": "Cittadino rimosso con successo"}), 200
+        #Dati cittadino e operatore
+        jRequest = request.json
+        sCodiceFiscale = jRequest["cittadino"]['codiceFiscale']
+        print(jRequest)
+
+        operatore = jRequest["operatore"]
+
+        con = controllo(operatore, 2)
+
+        if con:
+
+            #carichiamo l'anagrafe
+            print(db.read_in_db(cur, f"select * from cittadini where codice_fiscale = '{sCodiceFiscale}';"))
+
+            row = db.read_next_row(cur)[1]
+            print(row)
+
+            if row:
+
+                jResponse = {'Error': '000', 'msg':'ok', 'info': row} 
+                return json.dumps(jResponse), 200
+            else:
+
+                jResponse = {'Error': '001', 'msg':'Codice Fiscale non presente'} 
+                return json.dumps(jResponse), 200
         else:
-            return jsonify({"Esito": "001", "Msg": "Cittadino non trovato"}), 200
+
+            jResponse = {'Error': '001', 'msg':'Permesso Negato'} 
+            return json.dumps(jResponse), 200
     else:
-            return jsonify({"Esito": "002", "Msg": "Formato richiesta non valido"}), 200
+
+        return 'Errore, formato non riconosciuto', 401
+
+@api.route('/modifica_cittadino', methods=['POST'])
+def ModificaCittadino():
+    global cur
     
-     
+    #prendi i dati della richiesta
+    content_type = request.headers.get('Content-Type')
+    print('Ricevuta chiamata ' + content_type)
 
+    if content_type == 'application/json':
 
-api.run(host="127.0.0.1", port=8080, ssl_context="adhoc")
+        #Dati cittadino e operatore
+        jRequest = request.json
+        sCodiceFiscale = jRequest['codiceFiscale']
+        modifiche = jRequest['modifiche']
+        print(jRequest)
+
+        operatore = jRequest["operatore"]
+
+        con = controllo(operatore, 3)
+
+        if con:
+
+            #carichiamo l'anagrafe
+            #dAnagrafe = JsonDeserialize(sFileAnagrafe)
+
+            db.read_in_db(cur, f"select * from cittadini c where c.codice_fiscale = '{sCodiceFiscale}';")
+
+            row = db.read_next_row(cur)[1]
+
+            print(row)
+            
+            if row:
+
+                persona = list(row)
+                print(persona)
+
+                test: bool = False
+                n = 0
+                for key in modifiche:
+
+                    if modifiche[key] != 0:
+
+                        test = True
+                        persona[n] = modifiche[key]
+                    n += 1
+                if test:
+
+                    cf = persona[0]
+                    nome = persona[1]
+                    cognome = persona[2]
+                    data = persona[3]
+
+                    sQuery = f"UPDATE cittadini SET codice_fiscale = '{cf}', nome = '{nome}', cognome = '{cognome}', data_nascita = to_date('{data}', 'YYYY-MM-DD') WHERE codice_fiscale = '{sCodiceFiscale}';"
+                    print(sQuery)
+                    ris = db.write_in_db(cur, sQuery)
+
+                    if ris == 0:
+
+                        jResponse = {'Error': f'{ris}', 'msg':'modifiche effettuate'} 
+                        return json.dumps(jResponse), 200
+                    
+                    else:
+
+                        jResponse = {'Error': f'{ris}', 'msg':'modifiche andate male'} 
+                        return json.dumps(jResponse), 200
+
+                else:
+                    jResponse = {'Error': '000', 'msg':'nessuna modifica effettuata'} 
+                    return json.dumps(jResponse), 200
+            else:
+
+                jResponse = {'Error': '001', 'msg':'Codice Fiscale non presente'} 
+                return json.dumps(jResponse), 200
+        else:
+
+            jResponse = {'Error': '001', 'msg':'Permesso Negato'} 
+            return json.dumps(jResponse), 200
+            
+    else:
+
+        return 'Errore, formato non riconosciuto', 401
+    
+
+@api.route('/elimina_cittadino', methods=['POST'])
+def EliminaCittadino():
+    global cur
+    
+    #prendi i dati della richiesta
+    content_type = request.headers.get('Content-Type')
+    print('Ricevuta chiamata ' + content_type)
+
+    if content_type == 'application/json':
+
+        #Dati cittadino e operatore
+        jRequest = request.json
+        sCodiceFiscale = jRequest["cittadino"]['codiceFiscale']
+        print(jRequest)
+
+        operatore = jRequest["operatore"]
+
+        con = controllo(operatore, 4)
+
+        if con:
+
+            #carichiamo l'anagrafe
+            db.read_in_db(cur, f"select * from cittadini c where c.codice_fiscale = '{sCodiceFiscale}';")
+
+            row = db.read_next_row(cur)[1]
+            
+            print(row)
+
+            if row:
+
+                persona = list(row)
+                print(persona)
+
+                sQuery = f"DELETE FROM cittadini WHERE codice_fiscale = '{sCodiceFiscale}';"
+                print(sQuery)
+                ris = db.write_in_db(cur, sQuery)
+
+                if ris == 0:
+
+                    jResponse = {'Error': f'{ris}', 'msg':'Cittadino eliminato'} 
+                    return json.dumps(jResponse), 200
+                
+                else:
+
+                    jResponse = {'Error': f'{ris}', 'msg':'Cittadino non eliminato'} 
+                    return json.dumps(jResponse), 200
+            else:
+
+                jResponse = {'Error': '001', 'msg':'Codice Fiscale non presente'} 
+                return json.dumps(jResponse), 200
+        else:
+            jResponse = {'Error': '001', 'msg':'Permesso Negato'} 
+            return json.dumps(jResponse), 200
+    else:
+
+        return 'Errore, formato non riconosciuto', 401
+
+api.run(host='127.0.0.1', port=8080, ssl_context='adhoc')

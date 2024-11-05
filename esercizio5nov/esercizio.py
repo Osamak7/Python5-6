@@ -10,13 +10,17 @@ result = input("inserisci l'operazione :  ")
 while result != '3':
     
     if result == '2':
-        sQuery = input("inserisci la query che desideri in lettura:\n")
-        ret = db.read_in_db(cur, sQuery)
-
-        if (ret == -1):
-            print("hai inserito una query non valida \n")
+        sQuery = input("inserisci la query:  ")
+        
+        res = db.read_in_db(cur, sQuery)
+        if res <= -1:
+            print("hai inserito una query errata")
+        elif res == 0:
+            print("la query non ha risultati")
         else:
-            print("Query eseguita correttamente\n")
+            for i in range(0, res):
+                riga = db.read_next_row(cur)
+                print(riga)
 
     elif result == '1':
         sQuery = input("inserisci la query che desideri in scrittura:\n")
@@ -37,3 +41,7 @@ while result != '3':
         print("         3 = Exit")
         
     result = input("inserisci l'operazione :  ")
+
+
+
+

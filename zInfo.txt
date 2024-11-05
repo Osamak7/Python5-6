@@ -1,0 +1,5 @@
+443 = porta di default per le pagine https
+telnet = sessione di login remoto
+lsof = da informazioni su file aperti o processi in esecuzione 
+lsof -i = ti fornisce anche l'ip addres 
+lsof -i TCP:"porta che vuoi controllare "
